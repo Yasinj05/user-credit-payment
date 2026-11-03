@@ -6,6 +6,8 @@ import { SubmitPaymentUseCase } from './application/use-cases/submit-payment.use
 import { PrismaPaymentAdapter } from './infrastructure/adapters/prisma-payment.adapter';
 import { RabbitMqQueueAdapter } from './infrastructure/adapters/rabbitmq-queue.adapter';
 import { PaymentController } from './infrastructure/controllers/payment.controller';
+import { PaymentConsumer } from './infrastructure/consumers/payment.consumer';
+import { ProcessPaymentUseCase } from './application/use-cases/process-payment.use-case';
 
 @Module({
   imports: [PrismaModule, UsersModule],
@@ -27,6 +29,8 @@ import { PaymentController } from './infrastructure/controllers/payment.controll
         }),
     },
     SubmitPaymentUseCase,
+    ProcessPaymentUseCase,
+    PaymentConsumer,
   ],
   exports: [SubmitPaymentUseCase, 'PAYMENT_REPOSITORY_PORT', 'QUEUE_PORT'],
 })

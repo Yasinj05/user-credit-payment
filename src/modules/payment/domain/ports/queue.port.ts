@@ -5,4 +5,7 @@ export interface QueuePort {
     amount: string;
     reference: string;
   }): Promise<void>;
+  consumePaymentJobs(
+    handler: (payload: { paymentRequestId: string }) => Promise<void>,
+  ): Promise<void>;
 }
