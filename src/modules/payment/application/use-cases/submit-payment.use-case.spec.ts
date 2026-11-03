@@ -1,6 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Prisma } from '@prisma/client';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { SubmitPaymentUseCase } from './submit-payment.use-case';
 import type { PaymentRepositoryPort } from '../../domain/ports/payment.repository.port';
 import type { QueuePort } from '../../domain/ports/queue.port';
@@ -10,11 +11,20 @@ describe('SubmitPaymentUseCase', () => {
   let useCase: SubmitPaymentUseCase;
   let paymentRepository: jest.Mocked<PaymentRepositoryPort>;
   let queue: jest.Mocked<QueuePort>;
-  let usersService: { getUser: jest.Mock };
+  let usersService: {
+    getUser: jest.MockedFunction<UsersService['getUser']>;
+  };
   let redis: {
-    get: jest.Mock;
-    set: jest.Mock;
-    quit: jest.Mock;
+    get: jest.MockedFunction<() => Promise<string | null>>;
+    set: jest.MockedFunction<
+      (
+        key: string,
+        value: string,
+        mode: 'EX',
+        duration: number,
+      ) => Promise<'OK' | null>
+    >;
+    quit: jest.MockedFunction<() => Promise<'OK'>>;
   };
 
   const input = {
@@ -51,11 +61,22 @@ describe('SubmitPaymentUseCase', () => {
       publishPaymentJob: jest.fn(),
       consumePaymentJobs: jest.fn(),
     };
-    usersService = { getUser: jest.fn() };
+    usersService = {
+      getUser: jest.fn<UsersService['getUser']>(),
+    };
     redis = {
-      get: jest.fn().mockResolvedValue(null),
-      set: jest.fn().mockResolvedValue('OK'),
-      quit: jest.fn().mockResolvedValue('OK'),
+      get: jest.fn<() => Promise<string | null>>().mockResolvedValue(null),
+      set: jest
+        .fn<
+          (
+            key: string,
+            value: string,
+            mode: 'EX',
+            duration: number,
+          ) => Promise<'OK' | null>
+        >()
+        .mockResolvedValue('OK'),
+      quit: jest.fn<() => Promise<'OK'>>().mockResolvedValue('OK'),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -72,7 +93,14 @@ describe('SubmitPaymentUseCase', () => {
   });
 
   it('submits a queued payment and dispatches its job', async () => {
-    usersService.getUser.mockResolvedValue({ id: input.userId });
+    usersService.getUser.mockResolvedValue({
+      id: input.userId,
+      email: 'user@example.com',
+      name: 'Test User',
+      balance: new Prisma.Decimal(100),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
     paymentRepository.create.mockResolvedValue(payment);
 
     await expect(useCase.execute(input)).resolves.toEqual(payment);
@@ -118,7 +146,14 @@ describe('SubmitPaymentUseCase', () => {
   });
 
   it('recovers an existing payment after a unique constraint conflict', async () => {
-    usersService.getUser.mockResolvedValue({ id: input.userId });
+    usersService.getUser.mockResolvedValue({
+      id: input.userId,
+      email: 'user@example.com',
+      name: 'Test User',
+      balance: new Prisma.Decimal(100),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
     paymentRepository.create.mockRejectedValue(
       new Prisma.PrismaClientKnownRequestError('Duplicate payment', {
         code: 'P2002',

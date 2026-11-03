@@ -75,7 +75,7 @@ export class SubmitPaymentUseCase implements OnModuleDestroy {
       return paymentByReference;
     }
 
-    if (input.idempotencyKey && this.paymentRepository.findByIdempotencyKey) {
+    if (input.idempotencyKey) {
       return this.paymentRepository.findByIdempotencyKey(input.idempotencyKey);
     }
 
