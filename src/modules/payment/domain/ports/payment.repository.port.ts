@@ -10,6 +10,7 @@ export interface PaymentRepositoryPort {
   }): Promise<PaymentRequest>;
   findById(id: string): Promise<PaymentRequest | null>;
   findByReference(reference: string): Promise<PaymentRequest | null>;
+  findByIdempotencyKey?(idempotencyKey: string): Promise<PaymentRequest | null>;
   recordEvent(
     paymentRequestId: string,
     event: string,

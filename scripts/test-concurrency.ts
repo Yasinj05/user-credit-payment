@@ -15,6 +15,7 @@ type PaymentStatus =
 type PaymentResponse = {
   id: string;
   status: PaymentStatus;
+  failureReason?: string | null;
 };
 
 async function main(): Promise<void> {
@@ -42,6 +43,11 @@ async function main(): Promise<void> {
     const failed = payments.filter(
       (payment) => payment.status === 'FAILED',
     ).length;
+    const allFailedReasonsMatch = payments
+      .filter((payment) => payment.status === 'FAILED')
+      .every(
+        (payment) => payment.failureReason === 'User balance is insufficient',
+      );
     const user = await prisma.user.findUniqueOrThrow({
       where: { id: testUser.id },
       select: { balance: true },
@@ -50,6 +56,7 @@ async function main(): Promise<void> {
     const passed =
       successful === 4 &&
       failed === 6 &&
+      allFailedReasonsMatch &&
       finalBalance.equals(new Prisma.Decimal(0));
 
     console.table([
@@ -60,6 +67,11 @@ async function main(): Promise<void> {
       },
       { metric: 'Succeeded', expected: 4, actual: successful },
       { metric: 'Failed', expected: 6, actual: failed },
+      {
+        metric: 'Failure reason check',
+        expected: 'User balance is insufficient',
+        actual: allFailedReasonsMatch ? 'MATCHED' : 'MISMATCH',
+      },
       {
         metric: 'Final balance',
         expected: '0.00',

@@ -1,5 +1,5 @@
 import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
-import { PaymentRequest } from '@prisma/client';
+import { Prisma, PaymentRequest } from '@prisma/client';
 import Redis from 'ioredis';
 import { UsersService } from '../../../users/users.service';
 import type { PaymentRepositoryPort } from '../../domain/ports/payment.repository.port';
@@ -37,7 +37,23 @@ export class SubmitPaymentUseCase implements OnModuleDestroy {
 
     await this.usersService.getUser(input.userId);
 
-    const paymentRequest = await this.paymentRepository.create(input);
+    let paymentRequest: PaymentRequest;
+    try {
+      paymentRequest = await this.paymentRepository.create(input);
+    } catch (error) {
+      if (!this.isUniqueConstraintViolation(error)) {
+        throw error;
+      }
+
+      const existingPayment = await this.findExistingPayment(input);
+      if (!existingPayment) {
+        throw error;
+      }
+
+      await this.cachePayment(input, existingPayment);
+      return existingPayment;
+    }
+
     await this.cachePayment(input, paymentRequest);
     await this.queue.publishPaymentJob({
       paymentRequestId: paymentRequest.id,
@@ -47,6 +63,41 @@ export class SubmitPaymentUseCase implements OnModuleDestroy {
     });
 
     return paymentRequest;
+  }
+
+  private async findExistingPayment(
+    input: SubmitPaymentInput,
+  ): Promise<PaymentRequest | null> {
+    const paymentByReference = await this.paymentRepository.findByReference(
+      input.reference,
+    );
+    if (paymentByReference) {
+      return paymentByReference;
+    }
+
+    if (input.idempotencyKey && this.paymentRepository.findByIdempotencyKey) {
+      return this.paymentRepository.findByIdempotencyKey(input.idempotencyKey);
+    }
+
+    return null;
+  }
+
+  private isUniqueConstraintViolation(error: unknown): boolean {
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002' &&
+      this.isPaymentUniquenessTarget(error.meta?.target)
+    );
+  }
+
+  private isPaymentUniquenessTarget(target: unknown): boolean {
+    if (Array.isArray(target)) {
+      return target.some(
+        (field) => field === 'reference' || field === 'idempotencyKey',
+      );
+    }
+
+    return target === 'reference' || target === 'idempotencyKey';
   }
 
   private async getCachedPayment(

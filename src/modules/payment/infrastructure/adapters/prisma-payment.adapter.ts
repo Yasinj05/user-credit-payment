@@ -56,6 +56,10 @@ export class PrismaPaymentAdapter implements PaymentRepositoryPort {
     return this.prisma.paymentRequest.findUnique({ where: { reference } });
   }
 
+  findByIdempotencyKey(idempotencyKey: string): Promise<PaymentRequest | null> {
+    return this.prisma.paymentRequest.findUnique({ where: { idempotencyKey } });
+  }
+
   async recordEvent(
     paymentRequestId: string,
     event: string,
