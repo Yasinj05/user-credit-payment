@@ -1,0 +1,82 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum PaymentStatus {
+  PENDING
+  QUEUED
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum TransactionType {
+  DEBIT
+  CREDIT
+}
+
+model User {
+  id              String           @id @default(uuid())
+  email           String           @unique
+  name            String
+  balance         Decimal          @default(0.0) @db.Decimal(14, 2)
+  paymentRequests PaymentRequest[]
+  transactions    Transaction[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([email])
+}
+
+model PaymentRequest {
+  id             String         @id @default(uuid())
+  userId         String
+  amount         Decimal        @db.Decimal(14, 2)
+  reference      String         @unique
+  description    String?
+  status         PaymentStatus  @default(PENDING)
+  failureReason  String?
+  retryCount     Int            @default(0)
+  idempotencyKey String?        @unique
+  user           User           @relation(fields: [userId], references: [id])
+  transactions   Transaction[]
+  events         PaymentEvent[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([reference])
+}
+
+model Transaction {
+  id               String          @id @default(uuid())
+  userId           String
+  paymentRequestId String?
+  amount           Decimal         @db.Decimal(14, 2)
+  type             TransactionType @default(DEBIT)
+  reference        String
+  user             User            @relation(fields: [userId], references: [id])
+  paymentRequest   PaymentRequest? @relation(fields: [paymentRequestId], references: [id])
+  createdAt        DateTime        @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model PaymentEvent {
+  id               String         @id @default(uuid())
+  paymentRequestId String
+  event            String
+  metadata         Json?
+  paymentRequest   PaymentRequest @relation(fields: [paymentRequestId], references: [id])
+  createdAt        DateTime       @default(now())
+
+  @@index([paymentRequestId])
+}

@@ -27,6 +27,8 @@ lerna-debug.log*
 *.launch
 .settings/
 *.sublime-workspace
+.github
+PAYMENT_BACKEND_TASK_SPEC.md
 
 # IDE - VSCode
 .vscode/*
