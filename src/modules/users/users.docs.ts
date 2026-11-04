@@ -104,10 +104,6 @@ export function ApiRechargeUserDocs(): MethodDecorator {
           },
         },
       },
-    }),
-    ApiResponse({
-      status: 201,
-      description: 'Balance recharged successfully',
       schema: rechargeSchema,
     }),
     ApiResponse({ status: 400, description: 'Invalid recharge amount' }),

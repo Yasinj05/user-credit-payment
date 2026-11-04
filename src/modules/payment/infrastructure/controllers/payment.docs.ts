@@ -233,7 +233,7 @@ export function ApiSubmitPaymentDocs(): MethodDecorator {
       description: 'Optional key to safely retry the same request',
     }),
     ApiAcceptedResponse({
-      description: 'Payment queued successfully',
+      description: 'Payment accepted and queued successfully',
       schema: paymentSchema,
     }),
     ApiResponse({
@@ -309,6 +309,7 @@ export function ApiGetPaymentDocs(): MethodDecorator {
         },
       },
     }),
+    ApiResponse({ status: 400, description: 'Invalid UUID format' }),
     ApiResponse({ status: 404, description: 'Payment not found' }),
   );
 }
@@ -322,6 +323,7 @@ export function ApiGetPaymentEventsDocs(): MethodDecorator {
       description: 'Events returned chronologically',
       content: { 'application/json': { examples: eventTrail } },
     }),
+    ApiResponse({ status: 400, description: 'Invalid UUID format' }),
     ApiResponse({ status: 404, description: 'Payment not found' }),
   );
 }
